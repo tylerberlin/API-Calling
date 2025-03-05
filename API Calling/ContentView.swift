@@ -8,39 +8,41 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var competitions = [Competition]()
+    @State private var recipes = [Recipe]()
     @State private var showingAlert = false
+
     var body: some View {
         NavigationView {
-            List(competitions) { competition in
-                NavigationLink(competition.name) {
+            List(recipes) { recipe in
+                NavigationLink(recipe.title) {
                     VStack {
-                        Text(competition.name).font(.title).padding()
-                        Text("Area").font(.caption)
-                        Text(competition.area.name)
-                        if let url = competition.emblem {
-                            AsyncImage(url: URL(string: url)).padding()
+                        Text(recipe.title).font(.title).padding()
+                        if let imageUrl = recipe.image {
+                            AsyncImage(url: URL(string: imageUrl))
+                                .scaledToFit()
+                                .frame(height: 200)
+                                .padding()
                         }
                         Spacer()
                     }
                 }
             }
-            .navigationTitle("Football Competitions")
+            .navigationTitle("Recipes")
             .task {
                 await loadData()
             }
-            .alert(isPresented: $showingAlert, content: {
-                Alert(title: Text("Loading Error"), message: Text("There was a problem loading the Football Competitions"))
-            })
+            .alert(isPresented: $showingAlert) {
+                Alert(title: Text("Loading Error"), message: Text("There was a problem loading the recipes."))
+            }
         }
     }
 
     func loadData() async {
-        let query = "https://api.football-data.org/v4/competitions"
+        let query = "https://api.spoonacular.com/recipes/complexSearch?apiKey=3939d6a64e164fa591ca7873112ce119&number=10"
         if let url = URL(string: query) {
             if let (data, _) = try? await URLSession.shared.data(from: url) {
-                if let decodedResponse = try? JSONDecoder().decode(Competitions.self, from: data) {
-                    competitions = decodedResponse.competitions
+                if let decodedResponse = try? JSONDecoder().decode(RecipeResponse.self, from: data) {
+                    recipes = decodedResponse.results
                     return
                 }
             }
@@ -53,18 +55,12 @@ struct ContentView: View {
     ContentView()
 }
 
-struct Area: Codable {
-    var name: String
-    var flag: String?
-}
-
-struct Competition: Identifiable, Codable {
+struct Recipe: Identifiable, Codable {
     var id: Int
-    var name: String
-    var emblem: String?
-    var area: Area
+    var title: String
+    var image: String?
 }
 
-struct Competitions: Codable {
-    var competitions: [Competition]
+struct RecipeResponse: Codable {
+    var results: [Recipe]
 }
