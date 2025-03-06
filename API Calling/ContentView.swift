@@ -8,59 +8,41 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var recipes = [Recipe]()
-    @State private var showingAlert = false
-
+    @State private var breeds: [String] = []
+    
     var body: some View {
         NavigationView {
-            List(recipes) { recipe in
-                NavigationLink(recipe.title) {
-                    VStack {
-                        Text(recipe.title).font(.title).padding()
-                        if let imageUrl = recipe.image {
-                            AsyncImage(url: URL(string: imageUrl))
-                                .scaledToFit()
-                                .frame(height: 200)
-                                .padding()
-                        }
-                        Spacer()
+            ZStack {
+                List(breeds, id: \ .self) { breed in
+                    NavigationLink(destination: BreedDetailView(breed: breed)) {
+                        Text(breed.capitalized)
                     }
                 }
-            }
-            .navigationTitle("Recipes")
-            .task {
-                await loadData()
-            }
-            .alert(isPresented: $showingAlert) {
-                Alert(title: Text("Loading Error"), message: Text("There was a problem loading the recipes."))
+                .navigationTitle("Dog Breeds")
             }
         }
+        .onAppear(perform: fetchBreeds)
     }
-
-    func loadData() async {
-        let query = "https://api.spoonacular.com/recipes/complexSearch?apiKey=3939d6a64e164fa591ca7873112ce119&number=10"
-        if let url = URL(string: query) {
-            if let (data, _) = try? await URLSession.shared.data(from: url) {
-                if let decodedResponse = try? JSONDecoder().decode(RecipeResponse.self, from: data) {
-                    recipes = decodedResponse.results
-                    return
+    
+    func fetchBreeds() {
+        URLSession.shared.dataTask(with: URL(string: "https://dog.ceo/api/breeds/list/all")!) { data, _, _ in
+            if let data = data, let response = try? JSONDecoder().decode(BreedResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    breeds = response.message.keys.sorted()
                 }
             }
-        }
-        showingAlert = true
+        }.resume()
     }
+}
+
+struct BreedResponse: Codable {
+    let message: [String: [String]]
+}
+
+struct ImageResponse: Codable {
+    let message: String
 }
 
 #Preview {
     ContentView()
-}
-
-struct Recipe: Identifiable, Codable {
-    var id: Int
-    var title: String
-    var image: String?
-}
-
-struct RecipeResponse: Codable {
-    var results: [Recipe]
 }
